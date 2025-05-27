@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GS1 Code Generator Service</title>
+    <meta name="description" content="Generiere GS1 Digital Links und Barcodes - auch per URL-Parameter">
+    <meta name="keywords" content="GS1, Barcode, Digital Link, GTIN, Generator">
+    
+    <!-- External Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    
+    <!-- Internal Dependencies -->
+    <script src="gs1.js"></script>    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e8ed;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #34495e, #2c3e50);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .output-section {
+            margin-top: 30px;
+        }
+
+        .barcode-container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .url-examples {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-top: 30px;
+        }
+
+        .url-example {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            word-break: break-all;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #363;
+            border: 1px solid #cfc;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .gs1-info {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .ai-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .ai-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            font-size: 12px;
+        }
+
+        .ai-code {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏷️ GS1 Code Generator Service</h1>
+            <p>Erstelle GS1 Digital Links und Barcodes - auch per URL-Parameter</p>
+        </div>
+
+        <div class="main-content">
+            <div class="panel">
+                <h2>📝 Code Generator</h2>
+                
+                <div class="form-group">
+                    <label for="gtin">GTIN (Global Trade Item Number):</label>
+                    <input type="text" id="gtin" placeholder="z.B. 04012345123456" maxlength="14">
+                    <small>8, 12, 13 oder 14 Ziffern</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="batch">Batch/Lot (AI 10):</label>
+                    <input type="text" id="batch" placeholder="z.B. ABC123" maxlength="20">
+                </div>
+
+                <div class="form-group">
+                    <label for="serial">Seriennummer (AI 21):</label>
+                    <input type="text" id="serial" placeholder="z.B. 12345" maxlength="20">
+                </div>
+
+                <div class="form-group">
+                    <label for="expiry">Ablaufdatum (AI 17):</label>
+                    <input type="date" id="expiry">
+                </div>
+
+                <div class="form-group">
+                    <label for="domain">Domain:</label>
+                    <input type="text" id="domain" value="https://id.gs1.org" placeholder="https://example.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="format">Ausgabeformat:</label>
+                    <select id="format">
+                        <option value="svg">SVG</option>
+                        <option value="png">PNG</option>
+                        <option value="digital-link">GS1 Digital Link</option>
+                        <option value="element-string">Element String</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="generateCode()">Code generieren</button>
+                <button class="btn btn-secondary" onclick="clearForm()">Zurücksetzen</button>
+            </div>
+
+            <div class="panel">
+                <h2>📊 Ausgabe</h2>
+                <div id="output"></div>
+                <div id="barcode-container" class="barcode-container" style="display: none;">
+                    <canvas id="barcode"></canvas>
+                    <div id="barcode-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="url-examples">
+            <h2>🔗 URL-API Beispiele</h2>
+            <p>Du kannst Codes auch direkt über URL-Parameter generieren:</p>
+            
+            <div class="url-example">
+                <button class="copy-btn" onclick="copyToClipboard(this)">Kopieren</button>
+                <strong>SVG Barcode:</strong><br>
+                <span id="svg-url"></span>
+            </div>
+
+            <div class="url-example">
+                <button class="copy-btn" onclick="copyToClipboard(this)">Kopieren</button>
+                <strong>PNG Barcode:</strong><br>
+                <span id="png-url"></span>
+            </div>
+
+            <div class="url-example">
+                <button class="copy-btn" onclick="copyToClipboard(this)">Kopieren</button>
+                <strong>GS1 Digital Link:</strong><br>
+                <span id="dl-url"></span>
+            </div>
+
+            <h3>🔧 URL Parameter</h3>
+            <div class="gs1-info">
+                <strong>Verfügbare Parameter:</strong>
+                <ul>
+                    <li><code>gtin</code> - GTIN (Pflichtfeld)</li>
+                    <li><code>batch</code> - Batch/Lot Nummer</li>
+                    <li><code>serial</code> - Seriennummer</li>
+                    <li><code>expiry</code> - Ablaufdatum (YYMMDD)</li>
+                    <li><code>format</code> - Ausgabeformat (svg, png, digital-link, element-string)</li>
+                    <li><code>domain</code> - Domain für Digital Link</li>
+                    <li><code>width</code> - Breite für Barcode (Standard: 300)</li>
+                    <li><code>height</code> - Höhe für Barcode (Standard: 100)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    </body>
+</html>
