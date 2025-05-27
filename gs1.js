@@ -1574,12 +1574,38 @@ function showLoading(show) {
 }
 
 function copyToClipboard(button, text) {
-    const textToCopy = text || button.nextElementSibling?.textContent || button.parentElement.querySelector('span')?.textContent;
+    // Bestimme den zu kopierenden Text
+    let textToCopy = text;
+    
+    if (!textToCopy) {
+        // Suche nach dem nächsten Textinhalt
+        const parent = button.parentElement;
+        const spanElement = parent.querySelector('span');
+        
+        if (spanElement) {
+            textToCopy = spanElement.textContent;
+        } else {
+            // Fallback: Suche nach URL-Text im gleichen Container
+            const urlContainer = parent.closest('.url-example');
+            if (urlContainer) {
+                const urlText = urlContainer.textContent;
+                // Extrahiere nur die URL (alles nach dem ersten http)
+                const urlMatch = urlText.match(/https?:\/\/[^\s]+/);
+                if (urlMatch) {
+                    textToCopy = urlMatch[0];
+                }
+            }
+        }
+    }
     
     if (!textToCopy) {
         showError('Kein Text zum Kopieren gefunden');
         return;
     }
+    
+    // Entferne "Kopieren" Button-Text falls vorhanden
+    textToCopy = textToCopy.replace(/^(SVG Barcode:|PNG Barcode:|GS1 Digital Link:)\s*/, '');
+    textToCopy = textToCopy.replace(/Kopieren$/, '').trim();
     
     navigator.clipboard.writeText(textToCopy).then(() => {
         const originalText = button.textContent;
@@ -1605,8 +1631,9 @@ function copyToClipboard(button, text) {
             document.execCommand('copy');
             document.body.removeChild(textArea);
             
+            const originalText = button.textContent;
             button.textContent = '✅ Kopiert!';
-            setTimeout(() => button.textContent = 'Kopieren', 2000);
+            setTimeout(() => button.textContent = originalText, 2000);
         } catch (fallbackError) {
             showError('Kopieren fehlgeschlagen - Browser unterstützt diese Funktion nicht');
         }
