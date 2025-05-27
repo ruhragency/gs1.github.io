@@ -10,8 +10,6 @@
     
     <!-- External Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
-    
-    <!-- Internal Dependencies -->
     <script src="gs1.js"></script>
     
     <style>
@@ -217,6 +215,12 @@
             box-shadow: var(--shadow);
         }
 
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .btn-secondary {
             background: var(--text-light);
         }
@@ -239,6 +243,12 @@
 
         .btn-danger {
             background: var(--error-color);
+        }
+
+        .btn-example {
+            background: var(--accent-color);
+            font-size: 14px;
+            padding: 8px 16px;
         }
 
         .barcode-container {
@@ -427,6 +437,13 @@
             color: var(--primary-color);
         }
 
+        .example-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 1024px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -478,7 +495,7 @@
                     </div>
                 </div>
                 <div class="contact-info">
-                    <span>📧 <a href="mailto:info@ruhrdot.de">info@ruhrdot.de</a></span>
+                    <span>📧 <a href="mailto:info@ruhr.agency">info@ruhr.agency</a></span>
                     <span>🌐 <a href="https://ruhr.agency" target="_blank">ruhr.agency</a></span>
                 </div>
             </div>
@@ -515,6 +532,12 @@
         <div class="main-content">
             <div class="panel">
                 <h3>📝 Code Generator</h3>
+                
+                <div class="example-buttons">
+                    <button class="btn btn-example" onclick="loadExample('pharmaceutical')">🧬 Pharma Beispiel</button>
+                    <button class="btn btn-example" onclick="loadExample('food')">🍎 Lebensmittel</button>
+                    <button class="btn btn-example" onclick="loadExample('electronics')">💻 Elektronik</button>
+                </div>
                 
                 <div class="form-group">
                     <label for="gtin">GTIN (Global Trade Item Number):</label>
@@ -637,7 +660,7 @@
                 </div>
                 
                 <div style="color: var(--text-light); font-size: 0.9rem;">
-                    © 2024 ruhrdot GmbH - Powered by GS1 Standards
+                    © 2025 ruhrdot GmbH - Powered by GS1 Standards
                 </div>
             </div>
         </div>
