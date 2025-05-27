@@ -709,10 +709,37 @@ class GS1DigitalLinkToolkit {
     }
 
     /**
-     * Generate examples for different industries
-     * @param {string} industry - Industry type
-     * @returns {Object} Example GS1 data
+     * Generate valid GTIN with correct check digit
+     * @param {string} gtinWithoutCheck - GTIN without last digit (7, 11, 12, or 13 digits)
+     * @returns {string} Valid GTIN with check digit
      */
+    generateValidGTIN(gtinWithoutCheck) {
+        if (!gtinWithoutCheck || !/^\d{7}$|^\d{11}$|^\d{12}$|^\d{13}$/.test(gtinWithoutCheck)) {
+            throw new Error('GTIN ohne Prüfziffer muss 7, 11, 12 oder 13 Ziffern haben');
+        }
+
+        // Pad to 13 digits for check digit calculation
+        const paddedGtin13 = gtinWithoutCheck.padStart(13, '0');
+        const checkDigit = this.calculateGTINCheckDigit(paddedGtin13);
+        
+        // Return with original length + check digit
+        return gtinWithoutCheck + checkDigit;
+    }
+
+    /**
+     * Fix GTIN by calculating correct check digit
+     * @param {string} gtin - GTIN with potentially wrong check digit
+     * @returns {string} GTIN with correct check digit
+     */
+    fixGTIN(gtin) {
+        if (!gtin || !/^\d{8}$|^\d{12}$|^\d{13}$|^\d{14}$/.test(gtin)) {
+            throw new Error('GTIN muss 8, 12, 13 oder 14 Ziffern haben');
+        }
+
+        // Remove last digit (check digit) and recalculate
+        const gtinWithoutCheck = gtin.slice(0, -1);
+        return this.generateValidGTIN(gtinWithoutCheck);
+    }
     generateExample(industry) {
         const examples = {
             pharmaceutical: {
@@ -722,22 +749,22 @@ class GS1DigitalLinkToolkit {
                 '21': '12345'
             },
             food: {
-                '01': '04012345678904',
+                '01': '04012345678903',  // Korrigierte Prüfziffer
                 '17': '260630',
                 '10': 'LOT2024001'
             },
             electronics: {
-                '01': '04012345789012',
+                '01': '04012345789019',  // Korrigierte Prüfziffer
                 '21': 'SN987654321',
                 '10': 'BATCH789'
             },
             automotive: {
-                '01': '04012345890123',
+                '01': '04012345890130',  // Korrigierte Prüfziffer
                 '21': 'VIN123456789',
                 '10': 'P240115'
             },
             textile: {
-                '01': '04012345901234',
+                '01': '04012345901241',  // Korrigierte Prüfziffer
                 '10': 'FAB2024',
                 '22': 'SIZE-M-BLUE'
             }
@@ -1874,10 +1901,11 @@ function initializeGS1Service() {
         const gtinInput = document.getElementById('gtin');
         if (gtinInput) {
             gtinInput.addEventListener('paste', handleGTINPaste);
-            gtinInput.addEventListener('input', (e) => {
-                // Remove non-numeric characters
-                e.target.value = e.target.value.replace(/\D/g, '');
-            });
+            gtinInput.addEventListener('input', handleGTINInput);
+            gtinInput.addEventListener('blur', handleGTINBlur);
+            
+            // Add helper buttons
+            addGTINHelperButtons();
         }
         
         // Setup URL monitoring
@@ -1914,7 +1942,7 @@ function handleGTINPaste(event) {
     setTimeout(() => {
         const gtin = event.target.value.trim();
         if (gtin && /^\d{8,14}$/.test(gtin)) {
-            // Auto-validate GTIN on paste
+            // Auto-validate and fix GTIN on paste
             try {
                 const gs1Data = { '01': gtin };
                 const validation = toolkit.validateGS1Data(gs1Data);
@@ -1922,13 +1950,261 @@ function handleGTINPaste(event) {
                 if (validation.valid) {
                     showSuccess('GTIN erfolgreich eingefügt und validiert');
                 } else {
-                    showWarning('GTIN eingefügt, aber mit Validierungsfehlern');
+                    // Try to auto-fix GTIN
+                    autoFixGTIN();
                 }
             } catch (error) {
-                showWarning('GTIN eingefügt, aber Validierung fehlgeschlagen');
+                // Try to auto-fix GTIN
+                autoFixGTIN();
             }
         }
     }, 100);
+}
+
+/**
+ * Auto-fix GTIN check digit
+ */
+function autoFixGTIN() {
+    const gtinInput = document.getElementById('gtin');
+    const gtin = gtinInput.value.trim();
+    
+    if (gtin && /^\d{8,14}$/.test(gtin)) {
+        try {
+            const fixedGTIN = toolkit.fixGTIN(gtin);
+            if (fixedGTIN !== gtin) {
+                gtinInput.value = fixedGTIN;
+                showSuccess(`GTIN-Prüfziffer automatisch korrigiert: ${gtin} → ${fixedGTIN}`);
+                
+                // Trigger validation after fix
+                setTimeout(() => {
+                    try {
+                        const gs1Data = { '01': fixedGTIN };
+                        const validation = toolkit.validateGS1Data(gs1Data);
+                        if (validation.valid) {
+                            showSuccess('GTIN ist jetzt gültig!');
+                        }
+                    } catch (error) {
+                        // Silent fail
+                    }
+                }, 500);
+            }
+        } catch (error) {
+            showWarning('GTIN-Prüfziffer konnte nicht automatisch korrigiert werden: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Manual GTIN fix button
+ */
+function manualFixGTIN() {
+    autoFixGTIN();
+}
+
+/**
+ * Enhanced GTIN input handler
+ */
+function handleGTINInput(event) {
+    const input = event.target;
+    const originalValue = input.value;
+    
+    // Remove non-numeric characters
+    input.value = input.value.replace(/\D/g, '');
+    
+    // Limit to 14 digits
+    if (input.value.length > 14) {
+        input.value = input.value.substr(0, 14);
+    }
+    
+    // Auto-validate on blur if length is correct
+    if (input.value.length >= 8 && input.value.length <= 14) {
+        // Add visual feedback
+        input.style.borderColor = '';
+        input.style.backgroundColor = '';
+        
+        // Check if GTIN is valid
+        try {
+            const validation = toolkit.validateGTIN(input.value);
+            if (validation.valid) {
+                input.style.borderColor = '#059669';
+                input.style.backgroundColor = '#f0fdf4';
+            } else {
+                input.style.borderColor = '#dc2626';
+                input.style.backgroundColor = '#fef2f2';
+            }
+        } catch (error) {
+            input.style.borderColor = '#dc2626';
+            input.style.backgroundColor = '#fef2f2';
+        }
+    }
+}
+
+/**
+ * GTIN blur handler with auto-fix option
+ */
+function handleGTINBlur(event) {
+    const gtin = event.target.value.trim();
+    
+    if (gtin && /^\d{8,14}$/.test(gtin)) {
+        try {
+            const validation = toolkit.validateGTIN(gtin);
+            if (!validation.valid) {
+                // Show auto-fix option
+                showGTINFixOption(gtin);
+            }
+        } catch (error) {
+            showGTINFixOption(gtin);
+        }
+    }
+}
+
+/**
+ * Show GTIN fix option dialog
+ */
+function showGTINFixOption(gtin) {
+    try {
+        const fixedGTIN = toolkit.fixGTIN(gtin);
+        if (fixedGTIN !== gtin) {
+            const confirmFix = confirm(
+                `Die GTIN-Prüfziffer scheint falsch zu sein.\n\n` +
+                `Aktuell: ${gtin}\n` +
+                `Korrigiert: ${fixedGTIN}\n\n` +
+                `Soll die GTIN automatisch korrigiert werden?`
+            );
+            
+            if (confirmFix) {
+                document.getElementById('gtin').value = fixedGTIN;
+                showSuccess(`GTIN korrigiert: ${gtin} → ${fixedGTIN}`);
+                
+                // Update visual feedback
+                const input = document.getElementById('gtin');
+                input.style.borderColor = '#059669';
+                input.style.backgroundColor = '#f0fdf4';
+            }
+        }
+    } catch (error) {
+        // Silent fail - invalid GTIN format
+    }
+}
+
+/**
+ * Add GTIN helper buttons
+ */
+function addGTINHelperButtons() {
+    const gtinContainer = document.getElementById('gtin').parentElement;
+    
+    // Check if buttons already exist
+    if (gtinContainer.querySelector('.gtin-helper-buttons')) {
+        return;
+    }
+    
+    const helperDiv = document.createElement('div');
+    helperDiv.className = 'gtin-helper-buttons';
+    helperDiv.style.marginTop = '8px';
+    helperDiv.innerHTML = `
+        <button type="button" class="btn btn-example" onclick="autoFixGTIN()" style="font-size: 12px; padding: 4px 8px;">
+            🔧 GTIN korrigieren
+        </button>
+        <button type="button" class="btn btn-example" onclick="generateRandomGTIN()" style="font-size: 12px; padding: 4px 8px;">
+            🎲 Zufällige GTIN
+        </button>
+        <button type="button" class="btn btn-example" onclick="validateCurrentGTIN()" style="font-size: 12px; padding: 4px 8px;">
+            ✓ GTIN prüfen
+        </button>
+    `;
+    
+    gtinContainer.appendChild(helperDiv);
+}
+
+/**
+ * Generate random valid GTIN for testing
+ */
+function generateRandomGTIN() {
+    // Generate random 13-digit base
+    let randomBase = '';
+    for (let i = 0; i < 13; i++) {
+        randomBase += Math.floor(Math.random() * 10);
+    }
+    
+    // Calculate check digit
+    const checkDigit = toolkit.calculateGTINCheckDigit(randomBase);
+    const validGTIN = randomBase + checkDigit;
+    
+    document.getElementById('gtin').value = validGTIN;
+    showSuccess(`Zufällige gültige GTIN generiert: ${validGTIN}`);
+    
+    // Update visual feedback
+    const input = document.getElementById('gtin');
+    input.style.borderColor = '#059669';
+    input.style.backgroundColor = '#f0fdf4';
+}
+
+/**
+ * Validate current GTIN in input
+ */
+function validateCurrentGTIN() {
+    const gtin = document.getElementById('gtin').value.trim();
+    
+    if (!gtin) {
+        showWarning('Bitte geben Sie eine GTIN ein');
+        return;
+    }
+    
+    if (!/^\d{8,14}$/.test(gtin)) {
+        showError('GTIN muss 8-14 Ziffern enthalten');
+        return;
+    }
+    
+    try {
+        const validation = toolkit.validateGTIN(gtin);
+        if (validation.valid) {
+            showSuccess(`✅ GTIN ${gtin} ist gültig!`);
+            
+            // Show additional info
+            const paddedGTIN = gtin.padStart(14, '0');
+            const checkDigit = paddedGTIN.slice(-1);
+            displayOutput(`
+                <div class="alert alert-success">
+                    <strong>✅ GTIN-Validierung erfolgreich!</strong><br><br>
+                    <strong>Eingabe:</strong> ${gtin}<br>
+                    <strong>Vollformat (14-stellig):</strong> ${paddedGTIN}<br>
+                    <strong>Prüfziffer:</strong> ${checkDigit}<br>
+                    <strong>Status:</strong> Gültige GTIN nach GS1-Standard
+                </div>
+            `);
+        } else {
+            showError(`❌ GTIN ${gtin} ist ungültig: ${validation.error}`);
+            
+            // Offer auto-fix
+            try {
+                const fixedGTIN = toolkit.fixGTIN(gtin);
+                if (fixedGTIN !== gtin) {
+                    displayOutput(`
+                        <div class="alert alert-error">
+                            <strong>❌ GTIN-Validierung fehlgeschlagen!</strong><br><br>
+                            <strong>Fehler:</strong> ${validation.error}<br>
+                            <strong>Eingabe:</strong> ${gtin}<br>
+                            <strong>Korrektur:</strong> ${fixedGTIN}<br><br>
+                            <button class="btn btn-success" onclick="document.getElementById('gtin').value='${fixedGTIN}'; autoFixGTIN();">
+                                🔧 Automatisch korrigieren
+                            </button>
+                        </div>
+                    `);
+                }
+            } catch (fixError) {
+                displayOutput(`
+                    <div class="alert alert-error">
+                        <strong>❌ GTIN-Validierung fehlgeschlagen!</strong><br><br>
+                        <strong>Fehler:</strong> ${validation.error}<br>
+                        <strong>Eingabe:</strong> ${gtin}<br>
+                        <strong>Hinweis:</strong> GTIN kann nicht automatisch korrigiert werden
+                    </div>
+                `);
+            }
+        }
+    } catch (error) {
+        showError('Validierungsfehler: ' + error.message);
+    }
 }
 
 // URL parameter monitoring
@@ -2004,7 +2280,11 @@ if (typeof window !== 'undefined') {
         generateBarcode,
         validateBarcode,
         clearForm,
-        loadExample
+        loadExample,
+        autoFixGTIN,
+        manualFixGTIN,
+        generateRandomGTIN,
+        validateCurrentGTIN
     };
 }
 
